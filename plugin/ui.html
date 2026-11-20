@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Figma Local MCP Bridge</title>
+  <style>
+    :root {
+      --bg: var(--figma-color-bg, #1e1e1e);
+      --bg-secondary: var(--figma-color-bg-secondary, #2c2c2c);
+      --bg-hover: var(--figma-color-bg-hover, #383838);
+      --border: var(--figma-color-border, #3c3c3c);
+      --text: var(--figma-color-text, #f3f3f3);
+      --text-secondary: var(--figma-color-text-secondary, #a3a3a3);
+      --brand: var(--figma-color-bg-brand, #0d99ff);
+      --success: var(--figma-color-bg-success, #14ae5c);
+      --danger: var(--figma-color-bg-danger, #f24822);
+      --warning: var(--figma-color-bg-warning, #ffcd29);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 11px;
+      line-height: 1.4;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .min-btn {
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .min-btn:hover {
+      color: var(--text);
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .port-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .port-group label {
+      color: var(--text-secondary);
+      font-size: 10px;
+    }
+
+    body.minimized {
+      padding: 6px 8px;
+      gap: 0;
+      justify-content: center;
+    }
+
+    body.minimized .controls-row,
+    body.minimized .card,
+    body.minimized .log-title,
+    body.minimized .log-list {
+      display: none;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--warning);
+      flex-shrink: 0;
+    }
+
+    .dot.connected {
+      background: var(--success);
+      box-shadow: 0 0 6px var(--success);
+    }
+
+    .dot.disconnected {
+      background: var(--danger);
+    }
+
+    input[type="number"] {
+      width: 58px;
+      background: var(--bg-secondary);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 5px;
+      font-size: 11px;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--brand);
+    }
+
+    button {
+      background: var(--bg-secondary);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: var(--bg-hover);
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .meta-label {
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .meta-value {
+      font-weight: 500;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .log-title {
+      color: var(--text-secondary);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .log-list {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .log-empty {
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 18px 8px;
+      font-size: 11px;
+    }
+
+    .log-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 3px 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.03);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+    }
+
+    .log-method {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .log-right {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .log-ms {
+      color: var(--text-secondary);
+    }
+
+    .pill {
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 600;
+      font-size: 9px;
+    }
+
+    .pill.ok {
+      background: rgba(20, 174, 92, 0.22);
+      color: #6ee7a8;
+    }
+
+    .pill.err {
+      background: rgba(242, 72, 34, 0.22);
+      color: #ff8e76;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="badge">
+      <span id="statusDot" class="dot"></span>
+      <span id="statusText">Conectando...</span>
+    </div>
+    <button id="toggleMinBtn" class="min-btn" type="button" title="Minimizar">Minimizar</button>
+  </div>
+
+  <div class="controls-row">
+    <div class="port-group">
+      <label for="portInput">Porta WS</label>
+      <input id="portInput" type="number" min="1024" max="65535" value="3055" />
+    </div>
+    <button id="reconnectBtn" type="button">Reconectar</button>
+  </div>
+
+  <div class="card">
+    <div class="meta-row">
+      <span class="meta-label">Arquivo</span>
+      <span id="fileName" class="meta-value">—</span>
+    </div>
+    <div class="meta-row">
+      <span class="meta-label">Página</span>
+      <span id="pageName" class="meta-value">—</span>
+    </div>
+    <div class="meta-row">
+      <span class="meta-label">Seleção</span>
+      <span id="selectionCount" class="meta-value">0 itens</span>
+    </div>
+  </div>
+
+  <div class="log-title">Últimas chamadas MCP</div>
+  <div id="logList" class="log-list">
+    <div class="log-empty">Aguardando chamadas do Antigravity...</div>
+  </div>
+
+  <script>
+    const clientId = "figma-" + Math.random().toString(36).slice(2, 10);
+    const statusDot = document.getElementById("statusDot");
+    const statusText = document.getElementById("statusText");
+    const portInput = document.getElementById("portInput");
+    const reconnectBtn = document.getElementById("reconnectBtn");
+    const toggleMinBtn = document.getElementById("toggleMinBtn");
+    const fileNameEl = document.getElementById("fileName");
+    const pageNameEl = document.getElementById("pageName");
+    const selectionCountEl = document.getElementById("selectionCount");
+    const logListEl = document.getElementById("logList");
+
+    let ws = null;
+    let reconnectTimer = null;
+    let latestFileStatus = {
+      name: "Figma Document",
+      currentPage: { id: "", name: "" },
+      selectionCount: 0,
+    };
+
+    const inFlight = new Map();
+    const requestLogs = [];
+
+    function uint8ToBase64(bytes) {
+      const CHUNK_SIZE = 8192;
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+        const chunk = bytes.subarray(i, i + CHUNK_SIZE);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      return btoa(binary);
+    }
+
+    function setBadge(state, label) {
+      statusDot.className = "dot" + (state ? " " + state : "");
+      statusText.textContent = label;
+    }
+
+    function updateStatusUi(file) {
+      latestFileStatus = file;
+      fileNameEl.textContent = file.name || "Sem título";
+      pageNameEl.textContent = (file.currentPage && file.currentPage.name) || "—";
+      const count = Number(file.selectionCount || 0);
+      selectionCountEl.textContent = count === 1 ? "1 item" : count + " itens";
+    }
+
+    function addLogEntry(method, elapsedMs, ok) {
+      requestLogs.unshift({ method, elapsedMs, ok });
+      if (requestLogs.length > 12) {
+        requestLogs.length = 12;
+      }
+
+      logListEl.innerHTML = "";
+      for (const entry of requestLogs) {
+        const row = document.createElement("div");
+        row.className = "log-item";
+
+        const methodSpan = document.createElement("span");
+        methodSpan.className = "log-method";
+        methodSpan.textContent = entry.method;
+
+        const right = document.createElement("span");
+        right.className = "log-right";
+
+        const msSpan = document.createElement("span");
+        msSpan.className = "log-ms";
+        msSpan.textContent = entry.elapsedMs + "ms";
+
+        const pill = document.createElement("span");
+        pill.className = "pill " + (entry.ok ? "ok" : "err");
+        pill.textContent = entry.ok ? "OK" : "ERR";
+
+        right.appendChild(msSpan);
+        right.appendChild(pill);
+        row.appendChild(methodSpan);
+        row.appendChild(right);
+        logListEl.appendChild(row);
+      }
+    }
+
+    function sendWs(payload) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+      }
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, 2000);
+    }
+
+    function connect() {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+
+      if (ws) {
+        try {
+          ws.onopen = null;
+          ws.onclose = null;
+          ws.onerror = null;
+          ws.onmessage = null;
+          ws.close();
+        } catch (_) {}
+        ws = null;
+      }
+
+      const port = Number(portInput.value) || 3055;
+      setBadge("", "Conectando :" + port + "...");
+
+      let socket;
+      try {
+        socket = new WebSocket("ws://localhost:" + port);
+      } catch (err) {
+        setBadge("disconnected", "Erro WS");
+        scheduleReconnect();
+        return;
+      }
+
+      ws = socket;
+
+      socket.onopen = () => {
+        setBadge("connected", "Conectado :" + port);
+        sendWs({
+          type: "hello",
+          role: "figma-plugin",
+          clientId,
+          file: latestFileStatus,
+        });
+      };
+
+      socket.onmessage = (event) => {
+        let msg;
+        try {
+          msg = JSON.parse(event.data);
+        } catch (_) {
+          return;
+        }
+        if (msg && msg.type === "request") {
+          inFlight.set(msg.id, {
+            method: msg.method,
+            startedAt: performance.now(),
+          });
+          parent.postMessage({ pluginMessage: msg }, "*");
+        }
+      };
+
+      socket.onclose = () => {
+        if (ws === socket) {
+          setBadge("disconnected", "Reconectando...");
+          scheduleReconnect();
+        }
+      };
+
+      socket.onerror = () => {
+        if (ws === socket) {
+          setBadge("disconnected", "Servidor offline");
+        }
+      };
+    }
+
+    window.onmessage = (event) => {
+      const msg = event.data && event.data.pluginMessage;
+      if (!msg) return;
+
+      if (msg.type === "plugin-status") {
+        updateStatusUi(msg.file);
+        sendWs({
+          type: "figma-event",
+          event: "status-update",
+          clientId,
+          file: msg.file,
+        });
+        return;
+      }
+
+      if (msg.type === "response") {
+        const meta = inFlight.get(msg.id);
+        inFlight.delete(msg.id);
+        const elapsedMs = meta ? Math.max(1, Math.round(performance.now() - meta.startedAt)) : 0;
+        addLogEntry(meta ? meta.method : "unknown", elapsedMs, Boolean(msg.ok));
+
+        let finalResult = msg.result;
+        if (msg.ok && finalResult && finalResult.__binaryExport) {
+          const rawBytes = finalResult.bytes;
+          const bytes =
+            rawBytes instanceof Uint8Array
+              ? rawBytes
+              : new Uint8Array(rawBytes || []);
+          const baseMeta = {
+            nodeId: finalResult.nodeId,
+            name: finalResult.name,
+            format: finalResult.format,
+            scale: finalResult.scale,
+            byteLength: bytes.byteLength,
+          };
+
+          if (finalResult.format === "SVG") {
+            finalResult = Object.assign({}, baseMeta, {
+              svg: new TextDecoder("utf-8").decode(bytes),
+            });
+          } else {
+            finalResult = Object.assign({}, baseMeta, {
+              base64: uint8ToBase64(bytes),
+            });
+          }
+        }
+
+        sendWs(
+          msg.ok
+            ? { type: "response", id: msg.id, ok: true, result: finalResult }
+            : { type: "response", id: msg.id, ok: false, error: msg.error || "Unknown error" }
+        );
+      }
+    };
+
+    let minimized = false;
+
+    toggleMinBtn.addEventListener("click", () => {
+      minimized = !minimized;
+      document.body.classList.toggle("minimized", minimized);
+      toggleMinBtn.textContent = minimized ? "Expandir" : "Minimizar";
+      toggleMinBtn.title = minimized ? "Expandir" : "Minimizar";
+      parent.postMessage(
+        {
+          pluginMessage: {
+            type: "resize",
+            width: minimized ? 240 : 320,
+            height: minimized ? 40 : 320,
+          },
+        },
+        "*"
+      );
+    });
+
+    reconnectBtn.addEventListener("click", () => {
+      connect();
+    });
+
+    parent.postMessage({ pluginMessage: { type: "ui-ready" } }, "*");
+    connect();
+  </script>
+</body>
+</html>

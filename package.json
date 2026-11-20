@@ -1,0 +1,32 @@
+{
+  "name": "figma-bridge-mcp",
+  "version": "1.0.0",
+  "description": "Local Figma Desktop + WebSocket Plugin Bridge MCP Server (Zero REST API)",
+  "main": "build/index.js",
+  "type": "module",
+  "scripts": {
+    "build:server": "tsc -p tsconfig.json",
+    "build:plugin": "tsc -p plugin/tsconfig.json",
+    "build": "npm run build:server && npm run build:plugin",
+    "test": "tsx test/bridge.test.ts"
+  },
+  "keywords": [
+    "figma",
+    "mcp",
+    "websocket",
+    "plugin",
+    "design-tokens"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.109.0",
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.14",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
